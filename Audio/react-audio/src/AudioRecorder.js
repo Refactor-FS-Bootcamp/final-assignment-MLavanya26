@@ -1,95 +1,92 @@
-import React, { Component } from "react";
-import AudioAnalyser from "react-audio-analyser";
+import React, { useState } from 'react';
+import { ReactMic } from 'react-mic';
+import WaveSurfer from 'wavesurfer.js';
+// import 'wavesurfer.js/dist/wavesurfer.css';
 
-export default class AudioRecorder extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      status: ""
+const AudioRecorder = () => {
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [waveSurfer, setWaveSurfer] = useState(null);
+
+  const startRecording = () => {
+    setIsRecording(true);
+  };
+
+  const stopRecording = () => {
+    setIsRecording(false);
+  };
+
+  const onData = recordedData => {
+    console.log('chunk of real-time data is: ', recordedData);
+  };
+
+  const onStop = recordedData => {
+    console.log('recordedData of onStop: ', recordedData);
+    setAudioBlob(recordedData.blob);
+    initializeWaveSurfer();
+  };
+
+  const initializeWaveSurfer = () => {
+    if (waveSurfer) {
+      waveSurfer.destroy();
+    }
+
+    const options = {
+      container: '#waveform',
+      waveColor: 'violet',
+      progressColor: 'purple',
+      cursorWidth: 1,
+      barWidth: 3,
+      barRadius: 3,
+      responsive: true,
+      height: 100,
     };
-  }
 
-  controlAudio(status) {
-    this.setState({
-      status
-    });
-  }
+    const waveSurferObj = WaveSurfer.create(options);
+    waveSurferObj.loadBlob(audioBlob);
 
-  changeScheme(e) {
-    this.setState({
-      audioType: e.target.value
-    });
-  }
+    setWaveSurfer(waveSurferObj);
+  };
 
-  componentDidMount() {
-    this.setState({
-      audioType: "audio/wav"
-    });
-  }
+  const deleteAudio = () => {
+    setAudioBlob(null);
+    waveSurfer.destroy();
+    setWaveSurfer(null);
+  };
 
-  render() {
-    const { status, audioSrc, audioType } = this.state;
-    const audioProps = {
-      audioType,
-      // audioOptions: {sampleRate: 30000},
-      status,
-      audioSrc,
-      timeslice: 1000, // timeslice（https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder/start#Parameters）
-      startCallback: e => {
-        console.log("succ start", e);
-      },
-      pauseCallback: e => {
-        console.log("succ pause", e);
-      },
-      stopCallback: e => {
-        this.setState({
-          audioSrc: window.URL.createObjectURL(e)
-        });
-        console.log("succ stop", e);
-      },
-      onRecordCallback: e => {
-        console.log("recording", e);
-      },
-      errorCallback: err => {
-        console.log("error", err);
-      }
-    };
-    return (
-      <div>
-        <AudioAnalyser {...audioProps}>
-          <div className="btn-box">
-            <button
-              className="btn"
-              onClick={() => this.controlAudio("recording")}
-            >
-              Start
-            </button>
-            <button className="btn" onClick={() => this.controlAudio("paused")}>
-              Pause
-            </button>
-            <button
-              className="btn"
-              onClick={() => this.controlAudio("inactive")}
-            >
-              Stop
-            </button>
-            <button className="btn" onClick={() => console.log(AudioAnalyser)}>
-              Log
-            </button>
-          </div>
-        </AudioAnalyser>
-        <p>choose output type</p>
-        <select
-          name=""
-          id=""
-          onChange={e => this.changeScheme(e)}
-          value={audioType}
-        >
-          <option value="audio/webm">audio/webm（default）</option>
-          <option value="audio/wav">audio/wav</option>
-          <option value="audio/mp3">audio/mp3</option>
-        </select>
-      </div>
-    );
-  }
-}
+  const downloadAudio = () => {
+    const url = URL.createObjectURL(audioBlob);
+    const link = document.createElement('a');
+    link.download = 'my-audio.wav';
+    link.href = url;
+    link.click();
+  };
+
+  return (
+    <div>
+      <ReactMic
+        record={isRecording}
+        className="sound-wave"
+        onStop={onStop}
+        onData={onData}
+        strokeColor="#000000"
+        backgroundColor="#FFFFFF"
+      />
+      <button onClick={startRecording} disabled={isRecording}>
+        Start Recording
+      </button>
+      <button onClick={stopRecording} disabled={!isRecording}>
+        Stop Recording
+      </button>
+      {audioBlob && (
+        <div>
+          <button onClick={downloadAudio}>Download Audio</button>
+          <button onClick={deleteAudio}>Delete Audio</button>
+          <div id="waveform"></div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AudioRecorder;
